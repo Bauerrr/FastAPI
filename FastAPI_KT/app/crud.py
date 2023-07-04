@@ -12,18 +12,22 @@ def read_contacts(db: Session):
 
 def read_contact_by_name_and_last_name(db: Session, name: str, last_name: str):
     """Read operation for getting contact by its name and last_name"""
-    return db.query(models.Contact).filter_by(models.Contact.name == name, models.Contact.last_name == last_name)
+    return db.query(models.Contact).filter((models.Contact.name == name) & (models.Contact.last_name == last_name)).all()
 
 def read_contact_by_name(db: Session, name: str):
     """Read operation for getting contact by its name"""
-    return db.query(models.Contact).filter(models.Contact.name == name)
+    return db.query(models.Contact).filter(models.Contact.name == name).all()
 
 def read_contact_by_last_name(db: Session, last_name: str):
     """Read operation for getting contact by its last_name"""
-    return db.query(models.Contact).filter(models.Contact.last_name == last_name)
+    return db.query(models.Contact).filter(models.Contact.last_name == last_name).all()
+
+def read_contact_by_email(db: Session, email: str):
+    """Read operation for getting contact by its email"""
+    return db.query(models.Contact).filter(models.Contact.email_address == email).all()
 
 def read_contact_by_phone_number(db: Session, phone_number: str):
-    return db.query(models.Contact).filter(models.Contact.phone_number == phone_number).first()
+    return db.query(models.Contact).filter(models.Contact.phone_number == phone_number).all()
 
 def create_contact(db: Session, contact: schemas.ContactBase):
     """Create operation for creating single contact"""
