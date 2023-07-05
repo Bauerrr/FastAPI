@@ -1,6 +1,9 @@
 from sqlalchemy.orm import Session
+from passlib.context import CryptContext
 
 from . import models, schemas
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def read_contact(db: Session, contact_id: int):
     """Read operation for getting one contact by id"""
@@ -47,3 +50,13 @@ def delete_contact(db: Session, contact_id: int):
     db.query(models.Contact).filter(models.Contact.contact_id == contact_id).delete()
     db.commit()
     
+def read_user(db: Session, username: str):
+    db_user = db.query(models.User).filter(models.User.username == username).first()
+    return db_user
+
+def create_user(db: Session, user: schemas.User):
+    db_user = models.User(username=user.username, password=pwd_context.hash(user.password))
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user

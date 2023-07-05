@@ -1,13 +1,17 @@
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
 
-from . import crud, models, schemas
+from . import crud, models, schemas, authentication
 from .database import SessionLocal, engine
+
+from datetime import timedelta
+from typing import Annotated
+
+from fastapi.security import OAuth2PasswordRequestForm
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-
 
 def get_db():
     db = SessionLocal()
@@ -16,12 +20,16 @@ def get_db():
     finally:
         db.close()
 
-# TODO: gety za pomocą query elements imie i nazwisko
-
 @app.get("/")
 def get_hello():
     endpoints ={
-        "/contacts/": "get all contacts in database"
+        "/contacts/": "get all contacts in database",
+        "/contacts/?name=": "get all contacts in database with given name",
+        "/contacts/?last_name=": "get all contacts in database with given last_name",
+        "/contacts/?last_name=&name=": "get all contacts in database with given last_name and name",
+        "/contacts/?email=": "get all contacts in database with given email",
+        "/contacts/?phone_number=": "get contact with given phone_number",
+        "/contacts/id": "get contact with given id number",
     }
     return endpoints
 
@@ -57,17 +65,17 @@ def get_contact(contact_id: int, db: Session = Depends(get_db)):
     return db_contact
 
 @app.post("/contacts/", response_model=schemas.Contact)
-def create_contact(contact: schemas.ContactBase, db: Session = Depends(get_db)):
+def create_contact(contact: schemas.ContactBase, user: Annotated[schemas.User, Depends(authentication.get_current_user)], db: Session = Depends(get_db)):
     """Check if contact with given phone number exists in database, if not create contact. If contact already exists return status code 400."""
     db_contact = crud.read_contact_by_phone_number(db=db, phone_number=contact.phone_number)
     if db_contact:
         raise HTTPException(status_code=400, detail="Contact already exists")
     return crud.create_contact(db=db, contact=contact)
 
-@app.patch("/contacts/{contact_id}", response_model=schemas.Contact)
-def update_contact(contact_id: int, update_data: dict, db: Session = Depends(get_db)):
-    """Update contact with given id with values to change. If contact doesn't exist return 404 status code."""
 
+@app.patch("/contacts/{contact_id}", response_model=schemas.Contact)
+def update_contact(contact_id: int, user: Annotated[schemas.User, Depends(authentication.get_current_user)], update_data: dict, db: Session = Depends(get_db)):
+    """Update contact with given id with values to change. If contact doesn't exist return 404 status code."""
     allowed_keys = ("name", "last_name", "phone_number", "email_addres")
     # Check if dict keys are allowed
     for i in update_data.keys():
@@ -84,9 +92,34 @@ def update_contact(contact_id: int, update_data: dict, db: Session = Depends(get
     return crud.update_contact(db=db, update_data=update_data, contact_id=contact_id)
 
 @app.delete("/contacts/{contact_id}", status_code=204)
-def delete_contact(contact_id: int, db: Session = Depends(get_db)):
+def delete_contact(contact_id: int, user: Annotated[schemas.User, Depends(authentication.get_current_user)], db: Session = Depends(get_db)):
     """Delete contact with given id. If contact doesn't exist return 404 status code."""
     db_contact = crud.read_contact(db=db, contact_id=contact_id)
     if db_contact is None:
         raise HTTPException(status_code=404, detail="Contact not found")
     return crud.delete_contact(db=db, contact_id=contact_id)
+
+@app.post("/user/signup", response_model=schemas.User)
+def create_user(user: schemas.UserBase, db: Session = Depends(get_db)):
+    db_user = crud.read_user(db=db, username=user.username)
+    if db_user:
+        raise HTTPException(status_code=400, detail="User already exists")
+    return crud.create_user(db=db, user=user)
+
+@app.post("/token", response_model=schemas.Token)
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_db)
+):
+    user = authentication.authenticate_user(db=db, username=form_data.username, password=form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=authentication.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = authentication.create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}

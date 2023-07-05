@@ -10,3 +10,10 @@ class Contact(Base):
     last_name = Column(String)
     phone_number = Column(String)
     email_address = Column(String)
+
+class User(Base):
+    __tablename__ = "users"
+
+    user_id = Column(Integer, primary_key=True, index=True)
+    username = Column(String)
+    password = Column(String)
