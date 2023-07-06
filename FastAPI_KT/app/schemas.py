@@ -1,3 +1,7 @@
+"""
+File with pydantic schemas for database models. Used mainly for data validation, before database insertion.
+"""
+
 from pydantic import BaseModel, EmailStr
 
 

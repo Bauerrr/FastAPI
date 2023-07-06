@@ -1,8 +1,12 @@
+"""
+File with CRUD database operations.
+"""
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
 from . import models, schemas
 
+# CryptContext for encrypting user password
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def read_contact(db: Session, contact_id: int):
@@ -30,6 +34,7 @@ def read_contact_by_email(db: Session, email: str):
     return db.query(models.Contact).filter(models.Contact.email_address == email).all()
 
 def read_contact_by_phone_number(db: Session, phone_number: str):
+    """Read operation for getting contact by its phone number"""
     return db.query(models.Contact).filter(models.Contact.phone_number == phone_number).all()
 
 def create_contact(db: Session, contact: schemas.ContactBase):
@@ -47,14 +52,17 @@ def update_contact(db: Session, update_data: dict, contact_id: int):
     return db.query(models.Contact).filter(models.Contact.contact_id == contact_id).first()
 
 def delete_contact(db: Session, contact_id: int):
+    """Delete operation for deleting single contact with given contact_id"""
     db.query(models.Contact).filter(models.Contact.contact_id == contact_id).delete()
     db.commit()
     
 def read_user(db: Session, username: str):
+    """Read operation for reading user with given username"""
     db_user = db.query(models.User).filter(models.User.username == username).first()
     return db_user
 
 def create_user(db: Session, user: schemas.User):
+    """Create operation for creating user object"""
     db_user = models.User(username=user.username, password=pwd_context.hash(user.password))
     db.add(db_user)
     db.commit()
